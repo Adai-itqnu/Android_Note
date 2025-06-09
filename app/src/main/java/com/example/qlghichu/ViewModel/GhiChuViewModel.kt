@@ -60,4 +60,13 @@ class GhiChuViewModel(application: Application) : AndroidViewModel(application) 
     fun getAllNhiemVu(searchQuery: String): Flow<List<NhiemVu>> {
         return repository.getAllNhiemVu(searchQuery)
     }
+    fun deleteNhiemVu(nhiemVu: NhiemVu) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.deleteNhiemVu(nhiemVu)
+        }
+    }
+
+    suspend fun getNhiemVuById(id: Int): NhiemVu? {
+        return repository.getNhiemVuById(id)
+    }
 }

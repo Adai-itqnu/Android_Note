@@ -1,8 +1,11 @@
 package com.example.qlghichu.Screen
 
-
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -30,6 +33,77 @@ import com.example.qlghichu.ViewModel.GhiChuViewModel
 import com.example.qlghichu.ViewModel.NavigationViewModel
 import kotlinx.coroutines.flow.collectLatest
 
+val HighlightColor = Color(0xFFFFE4D1) // Cam nhạt nền chọn
+val IconBackground = Color(0xFF3A2513)  // Nâu đậm (check, viền chọn, nút xóa)
+val ButtonTextColor = Color.White
+val FabYellow = Color(0xFFFFC107)
+
+@Composable
+fun TaskTabBar(
+    selected: String,
+    onSelected: (String) -> Unit,
+    fontSize: Int = 16
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 12.dp, bottom = 0.dp, start = 12.dp),
+        horizontalArrangement = Arrangement.Start
+    ) {
+        TaskTab(
+            text = "Chưa hoàn thành",
+            selected = selected == "uncompleted",
+            onClick = { onSelected("uncompleted") },
+            fontSize = fontSize
+        )
+        Spacer(modifier = Modifier.width(24.dp))
+        TaskTab(
+            text = "Đã hoàn thành",
+            selected = selected == "completed",
+            onClick = { onSelected("completed") },
+            fontSize = fontSize
+        )
+    }
+}
+
+@Composable
+fun TaskTab(
+    text: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    fontSize: Int = 16
+) {
+    Column(
+        modifier = Modifier
+            .clickable(
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
+            ) { onClick() }
+            .padding(horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text(
+            text = text,
+            fontSize = fontSize.sp,
+            fontWeight = FontWeight.Bold,
+            color = if (selected) IconBackground else Color.Gray,
+            modifier = Modifier
+                .padding(horizontal = 6.dp, vertical = 4.dp)
+        )
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .height(4.dp)
+                    .width(32.dp)
+                    .background(Color(0xFFFFE4D1), RoundedCornerShape(8.dp))
+            )
+        } else {
+            Spacer(Modifier.height(8.dp))
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeNoteScreen(
@@ -43,12 +117,19 @@ fun HomeNoteScreen(
     var nhiemVuList by remember { mutableStateOf<List<NhiemVu>>(emptyList()) }
     val selectedTab by navViewModel.selectedTab.collectAsState()
 
+    var isNoteSelectionMode by remember { mutableStateOf(false) }
+    var selectedNoteIds by remember { mutableStateOf(listOf<Int>()) }
+    var isTaskSelectionMode by remember { mutableStateOf(false) }
+    var selectedTaskIds by remember { mutableStateOf(listOf<Int>()) }
+    var selectedTaskTab by remember { mutableStateOf("uncompleted") }
+
+    val (completedTasks, uncompletedTasks) = nhiemVuList.partition { it.trangThai == "Hoàn thành" }
+
     LaunchedEffect(searchGhiChu) {
         ghiChuViewModel.getAllGhiChu(searchGhiChu).collectLatest { list ->
             ghiChuList = list.sortedByDescending { it.id }
         }
     }
-
     LaunchedEffect(searchNhiemVu) {
         ghiChuViewModel.getAllNhiemVu(searchNhiemVu).collectLatest { list ->
             nhiemVuList = list.sortedByDescending { it.id }
@@ -76,27 +157,23 @@ fun HomeNoteScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    when (selectedTab) {
-                        "Ghi chú" -> {
-                            navViewModel.setSelectedTab("Ghi chú")
-                            navController.navigate("create")
+            if (!isNoteSelectionMode && !isTaskSelectionMode) {
+                FloatingActionButton(
+                    onClick = {
+                        when (selectedTab) {
+                            "Ghi chú" -> navController.navigate("create")
+                            "Nhiệm vụ" -> navController.navigate("createtask")
                         }
-                        "Nhiệm vụ" -> {
-                            navViewModel.setSelectedTab("Nhiệm vụ")
-                            navController.navigate("createtask")
-                        }
-                    }
-                },
-                containerColor = Color(0xFFFFC107),
-                shape = RoundedCornerShape(52.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = "Thêm",
-                    tint = Color.White
-                )
+                    },
+                    containerColor = FabYellow,
+                    shape = RoundedCornerShape(52.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "Thêm",
+                        tint = Color.White
+                    )
+                }
             }
         }
     ) { paddingValues ->
@@ -134,138 +211,326 @@ fun HomeNoteScreen(
                     .height(52.dp)
             )
 
-            when (selectedTab) {
-                "Ghi chú" -> NoteGrid(ghiChuList, navController, ghiChuViewModel)
-                "Nhiệm vụ" -> TaskGrid(nhiemVuList, ghiChuViewModel)
+            if (selectedTab == "Nhiệm vụ") {
+                TaskTabBar(selectedTaskTab, { selectedTaskTab = it }, fontSize = 16)
+            }
+
+            // Dùng Box(modifier = Modifier.weight(1f)) để danh sách chiếm toàn bộ phần còn lại
+            Box(modifier = Modifier.weight(1f)) {
+                when (selectedTab) {
+                    "Ghi chú" -> {
+                        SelectableNoteGrid(
+                            notes = ghiChuList,
+                            isSelectionMode = isNoteSelectionMode,
+                            selectedIds = selectedNoteIds,
+                            onItemClick = { note ->
+                                navController.navigate("viewedit/${note.id}")
+                            },
+                            onItemLongClick = { note ->
+                                isNoteSelectionMode = true
+                                selectedNoteIds = listOf(note.id)
+                            },
+                            onCheckboxChange = { note, checked ->
+                                selectedNoteIds = if (checked) selectedNoteIds + note.id else selectedNoteIds - note.id
+                                if (selectedNoteIds.isEmpty()) isNoteSelectionMode = false
+                            },
+                            onDelete = {
+                                ghiChuList.filter { selectedNoteIds.contains(it.id) }
+                                    .forEach { ghiChuViewModel.deleteGhiChu(it) }
+                                selectedNoteIds = emptyList()
+                                isNoteSelectionMode = false
+                            },
+                            onCancel = {
+                                isNoteSelectionMode = false
+                                selectedNoteIds = emptyList()
+                            }
+                        )
+                    }
+                    "Nhiệm vụ" -> {
+                        val showTasks = if (selectedTaskTab == "uncompleted") uncompletedTasks else completedTasks
+                        SelectableTaskGrid(
+                            tasks = showTasks,
+                            isSelectionMode = isTaskSelectionMode,
+                            selectedIds = selectedTaskIds,
+                            onItemClick = { task ->
+                                navController.navigate("viewedittask/${task.id}")
+                            },
+                            onItemLongClick = { task ->
+                                isTaskSelectionMode = true
+                                selectedTaskIds = listOf(task.id)
+                            },
+                            onCheckboxChange = { task, checked ->
+                                selectedTaskIds = if (checked) selectedTaskIds + task.id else selectedTaskIds - task.id
+                                if (selectedTaskIds.isEmpty()) isTaskSelectionMode = false
+                            },
+                            onStatusChange = { task, checked ->
+                                val newStatus = if (checked) "Hoàn thành" else "Chưa hoàn thành"
+                                ghiChuViewModel.updateNhiemVu(task.copy(trangThai = newStatus))
+                            },
+                            onDelete = {
+                                showTasks.filter { selectedTaskIds.contains(it.id) }
+                                    .forEach { ghiChuViewModel.deleteNhiemVu(it) }
+                                selectedTaskIds = emptyList()
+                                isTaskSelectionMode = false
+                            },
+                            onCancel = {
+                                isTaskSelectionMode = false
+                                selectedTaskIds = emptyList()
+                            }
+                        )
+                    }
+                }
             }
         }
     }
 }
 
+// --- Note Grid ---
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun NoteGrid(
-    ghiChuList: List<GhiChu>,
-    navController: NavController,
-    viewModel: GhiChuViewModel
+fun SelectableNoteGrid(
+    notes: List<GhiChu>,
+    isSelectionMode: Boolean,
+    selectedIds: List<Int>,
+    onItemClick: (GhiChu) -> Unit,
+    onItemLongClick: (GhiChu) -> Unit,
+    onCheckboxChange: (GhiChu, Boolean) -> Unit,
+    onDelete: () -> Unit,
+    onCancel: () -> Unit
 ) {
     var showDeleteDialog by remember { mutableStateOf(false) }
-    var noteToDelete by remember { mutableStateOf<GhiChu?>(null) }
 
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize()
-    ) {
-        items(ghiChuList) { note ->
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp)
-                    .combinedClickable(
-                        onClick = {
-                            // Nhấn để xem/sửa ghi chú
-                            navController.navigate("viewedit/${note.id}")
-                        },
-                        onLongClick = {
-                            // Giữ để xóa ghi chú
-                            noteToDelete = note
-                            showDeleteDialog = true
+    Box(Modifier.fillMaxSize()) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            contentPadding = PaddingValues(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(notes) { note ->
+                val isSelected = selectedIds.contains(note.id)
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isSelected) HighlightColor else Color.White
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .combinedClickable(
+                            onClick = {
+                                if (isSelectionMode) {
+                                    onCheckboxChange(note, !isSelected)
+                                } else {
+                                    onItemClick(note)
+                                }
+                            },
+                            onLongClick = { onItemLongClick(note) }
+                        )
+                        .border(
+                            width = if (isSelected) 2.dp else 0.dp,
+                            color = if (isSelected) IconBackground else Color.Transparent,
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        if (isSelectionMode) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { checked -> onCheckboxChange(note, checked) },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = IconBackground
+                                )
+                            )
                         }
-                    )
+                        Spacer(Modifier.width(8.dp))
+                        Column {
+                            Text(note.tieuDe, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                            Spacer(Modifier.height(4.dp))
+                            Text(note.noiDung, fontSize = 13.sp, color = Color.DarkGray, maxLines = 2)
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(note.ngay, fontSize = 11.sp, color = Color.Gray)
+                        }
+                    }
+                }
+            }
+        }
+        if (isSelectionMode && selectedIds.isNotEmpty()) {
+            Row(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp)
             ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Text(note.tieuDe, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(note.noiDung, fontSize = 13.sp, color = Color.DarkGray, maxLines = 2)
-                    Spacer(modifier = Modifier.weight(1f))
-                    Text(note.ngay, fontSize = 11.sp, color = Color.Gray, modifier = Modifier.align(Alignment.End))
+                Button(
+                    onClick = { showDeleteDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = IconBackground),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Xóa (${selectedIds.size})", color = ButtonTextColor)
+                }
+                Spacer(Modifier.width(12.dp))
+                Button(
+                    onClick = { onCancel() },
+                    colors = ButtonDefaults.buttonColors(containerColor = HighlightColor),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Hủy", color = Color.Black)
                 }
             }
         }
     }
 
-    // Dialog xác nhận xóa
-    if (showDeleteDialog && noteToDelete != null) {
+    if (showDeleteDialog) {
         AlertDialog(
-            onDismissRequest = {
-                showDeleteDialog = false
-                noteToDelete = null
-            },
+            onDismissRequest = { showDeleteDialog = false },
             title = { Text("Xác nhận xóa") },
-            text = { Text("Bạn có chắc chắn muốn xóa ghi chú \"${noteToDelete?.tieuDe}\" không?") },
+            text = { Text("Bạn có chắc muốn xóa các ghi chú đã chọn không?") },
             confirmButton = {
-                TextButton(
-                    onClick = {
-                        noteToDelete?.let {
-                            viewModel.deleteGhiChu(it)
-                        }
-                        showDeleteDialog = false
-                        noteToDelete = null
-                    }
-                ) {
-                    Text("Xóa", color = Color.Red)
+                TextButton(onClick = {
+                    onDelete()
+                    showDeleteDialog = false
+                }) {
+                    Text("Xóa", color = IconBackground)
                 }
             },
             dismissButton = {
-                TextButton(
-                    onClick = {
-                        showDeleteDialog = false
-                        noteToDelete = null
-                    }
-                ) {
-                    Text("Hủy")
-                }
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Hủy") }
             }
         )
     }
 }
 
+// --- Task Grid ---
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun TaskGrid(nhiemVuList: List<NhiemVu>, viewModel: GhiChuViewModel) {
-    LazyVerticalGrid(
-        columns = GridCells.Fixed(2),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier = Modifier.fillMaxSize()
-    ) {
-        items(nhiemVuList) { task ->
-            Card(
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp)
-            ) {
-                Row(
+fun SelectableTaskGrid(
+    tasks: List<NhiemVu>,
+    isSelectionMode: Boolean,
+    selectedIds: List<Int>,
+    onItemClick: (NhiemVu) -> Unit,
+    onItemLongClick: (NhiemVu) -> Unit,
+    onCheckboxChange: (NhiemVu, Boolean) -> Unit,
+    onStatusChange: (NhiemVu, Boolean) -> Unit,
+    onDelete: () -> Unit,
+    onCancel: () -> Unit
+) {
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    Box(Modifier.fillMaxSize()) {
+        LazyVerticalGrid(
+            columns = GridCells.Fixed(2),
+            contentPadding = PaddingValues(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxSize()
+        ) {
+            items(tasks) { task ->
+                val isSelected = selectedIds.contains(task.id)
+                Card(
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (isSelected) HighlightColor else Color.White
+                    ),
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(12.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                        .fillMaxWidth()
+                        .height(120.dp)
+                        .combinedClickable(
+                            onClick = {
+                                if (isSelectionMode) {
+                                    onCheckboxChange(task, !isSelected)
+                                } else {
+                                    onItemClick(task)
+                                }
+                            },
+                            onLongClick = { onItemLongClick(task) }
+                        )
+                        .border(
+                            width = if (isSelected) 2.dp else 0.dp,
+                            color = if (isSelected) IconBackground else Color.Transparent,
+                            shape = RoundedCornerShape(16.dp)
+                        )
                 ) {
-                    Checkbox(
-                        checked = task.trangThai == "Hoàn thành",
-                        onCheckedChange = { isChecked ->
-                            val newStatus = if (isChecked) "Hoàn thành" else "Chưa hoàn thành"
-                            viewModel.updateNhiemVu(task.copy(trangThai = newStatus))
+                    Row(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (isSelectionMode) {
+                            Checkbox(
+                                checked = isSelected,
+                                onCheckedChange = { checked -> onCheckboxChange(task, checked) },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = IconBackground
+                                )
+                            )
+                        } else {
+                            Checkbox(
+                                checked = task.trangThai == "Hoàn thành",
+                                onCheckedChange = { checked -> onStatusChange(task, checked) },
+                                colors = CheckboxDefaults.colors(
+                                    checkedColor = IconBackground
+                                )
+                            )
                         }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Column(modifier = Modifier.fillMaxHeight()) {
-                        Text(task.tieuDe, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(task.trangThai, fontSize = 13.sp, color = Color.DarkGray, maxLines = 2)
-                        Spacer(modifier = Modifier.weight(1f))
-                        Text(task.ngay, fontSize = 11.sp, color = Color.Gray, modifier = Modifier.align(Alignment.End))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Column(modifier = Modifier.fillMaxHeight()) {
+                            Text(task.tieuDe, fontSize = 15.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(task.trangThai, fontSize = 13.sp, color = Color.DarkGray, maxLines = 2)
+                            Spacer(modifier = Modifier.weight(1f))
+                            Text(task.ngay, fontSize = 11.sp, color = Color.Gray, modifier = Modifier.align(Alignment.End))
+                        }
                     }
                 }
             }
         }
+
+        if (isSelectionMode && selectedIds.isNotEmpty()) {
+            Row(
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(16.dp)
+            ) {
+                Button(
+                    onClick = { showDeleteDialog = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = IconBackground),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Xóa (${selectedIds.size})", color = ButtonTextColor)
+                }
+                Spacer(Modifier.width(12.dp))
+                Button(
+                    onClick = { onCancel() },
+                    colors = ButtonDefaults.buttonColors(containerColor = HighlightColor),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Hủy", color = Color.Black)
+                }
+            }
+        }
+    }
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Xác nhận xóa") },
+            text = { Text("Bạn có chắc muốn xóa các nhiệm vụ đã chọn không?") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onDelete()
+                    showDeleteDialog = false
+                }) {
+                    Text("Xóa", color = IconBackground)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Hủy") }
+            }
+        )
     }
 }
 

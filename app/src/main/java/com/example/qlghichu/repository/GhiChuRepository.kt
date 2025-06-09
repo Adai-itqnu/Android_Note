@@ -14,7 +14,7 @@ class GhiChuRepository(
         ghiChuDao.insert(ghiChu)
     }
 
-    suspend fun updateGhiChu(ghiChu: GhiChu){
+    suspend fun updateGhiChu(ghiChu: GhiChu) {
         ghiChuDao.update(ghiChu)
     }
 
@@ -38,7 +38,15 @@ class GhiChuRepository(
         return ghiChuDao.getAllGhiChu("%$searchQuery%")
     }
 
-    fun getAllNhiemVu(searchQuery : String): Flow<List<NhiemVu>> {
+    fun getAllNhiemVu(searchQuery: String): Flow<List<NhiemVu>> {
         return nhiemVuDao.getAllNhiemVu(searchQuery)
+    }
+
+    suspend fun deleteNhiemVu(nhiemVu: NhiemVu) {
+        nhiemVuDao.delete(nhiemVu)
+    }
+
+    suspend fun getNhiemVuById(id: Int): NhiemVu? {
+        return nhiemVuDao.getNhiemVuById(id)
     }
 }

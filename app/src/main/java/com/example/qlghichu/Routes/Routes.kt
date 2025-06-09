@@ -10,6 +10,7 @@ import com.example.qlghichu.Screen.CreateNoteScreen
 import com.example.qlghichu.Screen.CreateTaskScreen
 import com.example.qlghichu.Screen.HomeNoteScreen
 import com.example.qlghichu.Screen.ViewEditNoteScreen
+import com.example.qlghichu.Screen.ViewEditTaskScreen
 
 @Composable
 fun SetupNavGraph() {
@@ -24,6 +25,13 @@ fun SetupNavGraph() {
         ) { backStackEntry ->
             val noteId = backStackEntry.arguments?.getInt("noteId") ?: 0
             ViewEditNoteScreen(navController, noteId)
+        }
+        composable(
+            "viewedittask/{taskId}",
+            arguments = listOf(navArgument("taskId") { type = NavType.IntType })
+        ) { backStackEntry ->
+            val taskId = backStackEntry.arguments?.getInt("taskId") ?: 0
+            ViewEditTaskScreen(navController, taskId)
         }
     }
 }
