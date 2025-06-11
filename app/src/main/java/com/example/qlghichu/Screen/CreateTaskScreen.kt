@@ -11,21 +11,21 @@ import androidx.compose.material3.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.example.qlghichu.Entity.SubTask
 import com.example.qlghichu.ViewModel.GhiChuViewModel
 import java.text.SimpleDateFormat
 import java.util.*
-import androidx.compose.ui.Alignment
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -36,18 +36,17 @@ fun CreateTaskScreen(
     val context = LocalContext.current
     var taskText by remember { mutableStateOf("") }
     var taskList by remember { mutableStateOf<List<String>>(emptyList()) }
-    var selectedDateTime by remember {
-        mutableStateOf(getCurrentDateTimeWithOffset())
-    }
+    var subTasks by remember { mutableStateOf<List<SubTask>>(emptyList()) }
+    var newSubTaskTitle by remember { mutableStateOf("") }
+    var selectedDateTime by remember { mutableStateOf(getCurrentDateTimeWithOffset()) }
 
     val calendar = Calendar.getInstance()
 
-    // DatePickerDialog để chọn ngày
+    // DatePickerDialog để chọn ngày & giờ
     val datePickerDialog = DatePickerDialog(
         context,
         { _: DatePicker, year: Int, month: Int, day: Int ->
             calendar.set(year, month, day)
-            // Sau khi chọn ngày, hiển thị TimePickerDialog để chọn giờ và phút
             val timePickerDialog = TimePickerDialog(
                 context,
                 { _, hour: Int, minute: Int ->
@@ -57,7 +56,7 @@ fun CreateTaskScreen(
                 },
                 calendar.get(Calendar.HOUR_OF_DAY),
                 calendar.get(Calendar.MINUTE),
-                true // Định dạng 24 giờ
+                true
             )
             timePickerDialog.show()
         },
@@ -150,6 +149,7 @@ fun CreateTaskScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
+                    // Nút đặt nhắc nhở
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -179,23 +179,85 @@ fun CreateTaskScreen(
                                     viewModel.themNhiemVu(
                                         tieuDe = task,
                                         trangThai = "Chưa hoàn thành",
-                                        ngay = selectedDateTime
+                                        ngay = selectedDateTime,
+                                        onSuccess = {}
                                     )
                                 }
-                                // Lưu taskText nếu không trống
                                 if (taskText.isNotBlank()) {
                                     viewModel.themNhiemVu(
                                         tieuDe = taskText,
                                         trangThai = "Chưa hoàn thành",
-                                        ngay = selectedDateTime
+                                        ngay = selectedDateTime,
+                                        onSuccess = {}
                                     )
                                 }
-                                // Quay lại trang chủ
+                                // Lưu subtask có thể làm sau (nếu cần nhận được taskId, nên dùng onSuccess để callback)
+
                                 navController.popBackStack()
                             },
                             enabled = taskList.isNotEmpty() || taskText.isNotBlank()
                         ) {
                             Text("Hoàn tất", fontSize = 14.sp)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    // --- PHẦN QUẢN LÝ SUBTASK ---
+                    Text("Các công việc con (Subtask):", fontWeight = FontWeight.Bold)
+
+                    subTasks.forEachIndexed { index, subTask ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Checkbox(
+                                checked = subTask.isCompleted,
+                                onCheckedChange = { checked ->
+                                    subTasks = subTasks.toMutableList().also { list ->
+                                        list[index] = list[index].copy(isCompleted = checked)
+                                    }
+                                }
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(subTask.title, modifier = Modifier.weight(1f))
+                            IconButton(onClick = {
+                                subTasks = subTasks.toMutableList().also { it.removeAt(index) }
+                            }) {
+                                Icon(Icons.Default.Delete, contentDescription = "Xóa subtask")
+                            }
+                        }
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextField(
+                            value = newSubTaskTitle,
+                            onValueChange = { newSubTaskTitle = it },
+                            placeholder = { Text("Thêm subtask...") },
+                            modifier = Modifier.weight(1f),
+                            keyboardOptions = KeyboardOptions.Default.copy(
+                                imeAction = ImeAction.Done
+                            ),
+                            keyboardActions = KeyboardActions(
+                                onDone = {
+                                    if (newSubTaskTitle.isNotBlank()) {
+                                        subTasks = subTasks + SubTask(title = newSubTaskTitle, isCompleted = false, taskId = 0)
+                                        newSubTaskTitle = ""
+                                    }
+                                }
+                            )
+                        )
+                        IconButton(onClick = {
+                            if (newSubTaskTitle.isNotBlank()) {
+                                subTasks = subTasks + SubTask(title = newSubTaskTitle, isCompleted = false, taskId = 0)
+                                newSubTaskTitle = ""
+                            }
+                        }) {
+                            Icon(Icons.Default.Add, contentDescription = "Thêm")
                         }
                     }
                 }

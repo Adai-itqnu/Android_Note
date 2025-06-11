@@ -70,6 +70,10 @@ dependencies {
     kapt("androidx.room:room-compiler:2.7.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.6.1")
     implementation("androidx.lifecycle:lifecycle-livedata-ktx:2.6.2")
+    // hiệu ứng khi hoan thanh task
+    implementation ("nl.dionsegijn:konfetti-core:2.0.4")
+    implementation ("nl.dionsegijn:konfetti-compose:2.0.4")
+    implementation ("androidx.compose.animation:animation:1.5.0")
 
 
 }

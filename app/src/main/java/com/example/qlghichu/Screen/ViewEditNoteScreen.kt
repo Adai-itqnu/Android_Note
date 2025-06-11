@@ -72,7 +72,7 @@ fun ViewEditNoteScreen(
                 actions = {
                     // Nút xóa
                     IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Xóa", tint = Color.Red)
+                        Icon(Icons.Default.Delete, contentDescription = "Xóa", tint = Color(0xFFCC9966))
                     }
 
                     // Nút lưu (chỉ hiện khi có thay đổi)

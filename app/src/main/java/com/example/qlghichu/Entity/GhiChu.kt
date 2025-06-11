@@ -8,5 +8,7 @@ data class GhiChu(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val tieuDe: String,
     val noiDung: String,
-    val ngay: String
+    val ngay: String,
+    val isDeleted: Boolean = false,
+    val isPinned: Boolean = false
 )

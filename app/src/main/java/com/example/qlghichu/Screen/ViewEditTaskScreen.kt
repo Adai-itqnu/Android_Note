@@ -39,12 +39,16 @@ fun ViewEditTaskScreen(
     var taskText by remember { mutableStateOf("") }
     var selectedDateTime by remember { mutableStateOf(getCurrentDateTimeWithOffset()) }
     var status by remember { mutableStateOf("Chưa hoàn thành") }
+    var isPinned by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+
+    val subTasks by viewModel.getSubTasksForTask(taskId).collectAsState(initial = emptyList())
+    var newSubTaskTitle by remember { mutableStateOf("") }
 
     val scope = rememberCoroutineScope()
     val calendar = Calendar.getInstance()
 
-    // Lấy dữ liệu nhiệm vụ hiện tại
+    // Load task
     LaunchedEffect(taskId) {
         scope.launch {
             val fetched = viewModel.getNhiemVuById(taskId)
@@ -53,7 +57,7 @@ fun ViewEditTaskScreen(
                 taskText = it.tieuDe
                 selectedDateTime = it.ngay
                 status = it.trangThai
-                // Parse date cho calendar
+                isPinned = it.isPinned
                 try {
                     val sdf = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
                     val date = sdf.parse(it.ngay)
@@ -109,9 +113,11 @@ fun ViewEditTaskScreen(
                     }
                 },
                 actions = {
+                    // Xóa mềm vào thùng rác
                     IconButton(onClick = { showDeleteDialog = true }) {
-                        Icon(Icons.Default.Delete, contentDescription = "Xóa", tint = Color.Red)
+                        Icon(Icons.Default.Delete, contentDescription = "Xóa", tint = Color(0xFFCC9966))
                     }
+                    // Lưu
                     IconButton(
                         onClick = {
                             task?.let { t ->
@@ -119,7 +125,8 @@ fun ViewEditTaskScreen(
                                     t.copy(
                                         tieuDe = taskText,
                                         trangThai = status,
-                                        ngay = selectedDateTime
+                                        ngay = selectedDateTime,
+                                        isPinned = isPinned
                                     )
                                 )
                             }
@@ -182,7 +189,7 @@ fun ViewEditTaskScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // CheckBox hoàn thành
+            // CheckBox hoàn thành (nếu không dùng subtask)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(
                     checked = status == "Hoàn thành",
@@ -197,15 +204,49 @@ fun ViewEditTaskScreen(
                 Spacer(Modifier.width(4.dp))
                 Text("Hoàn thành", fontSize = 16.sp)
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Subtasks
+            Text("Các công việc con (Subtask):", fontWeight = FontWeight.Bold)
+            subTasks.forEach { subTask ->
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(
+                        checked = subTask.isCompleted,
+                        onCheckedChange = { checked ->
+                            viewModel.updateSubTask(subTask.copy(isCompleted = checked))
+                        }
+                    )
+                    Text(subTask.title, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { viewModel.deleteSubTask(subTask) }) {
+                        Icon(Icons.Default.Delete, contentDescription = "Xóa subtask")
+                    }
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextField(
+                    value = newSubTaskTitle,
+                    onValueChange = { newSubTaskTitle = it },
+                    placeholder = { Text("Thêm subtask...") },
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = {
+                    if (newSubTaskTitle.isNotBlank()) {
+                        viewModel.addSubTask(taskId, newSubTaskTitle)
+                        newSubTaskTitle = ""
+                    }
+                }) {
+                    Icon(Icons.Default.Add, contentDescription = "Thêm")
+                }
+            }
         }
     }
 
-    // Dialog xác nhận xóa
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Xác nhận xóa") },
-            text = { Text("Bạn có chắc chắn muốn xóa nhiệm vụ này không?") },
+            text = { Text("Bạn có chắc chắn muốn đưa nhiệm vụ vào thùng rác không?") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -214,7 +255,7 @@ fun ViewEditTaskScreen(
                         navController.popBackStack()
                     }
                 ) {
-                    Text("Xóa", color = Color.Red)
+                    Text("Đưa vào thùng rác", color = Color.Red)
                 }
             },
             dismissButton = {
@@ -224,7 +265,6 @@ fun ViewEditTaskScreen(
     }
 }
 
-// Hàm getCurrentDateTimeWithOffset dùng lại như CreateTaskScreen
 private fun getCurrentDateTimeWithOffset(): String {
     val calendar = Calendar.getInstance()
     calendar.add(Calendar.MINUTE, 1)

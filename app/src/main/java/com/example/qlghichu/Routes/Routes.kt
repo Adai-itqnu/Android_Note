@@ -11,6 +11,8 @@ import com.example.qlghichu.Screen.CreateTaskScreen
 import com.example.qlghichu.Screen.HomeNoteScreen
 import com.example.qlghichu.Screen.ViewEditNoteScreen
 import com.example.qlghichu.Screen.ViewEditTaskScreen
+import com.example.qlghichu.Screen.TrashGhiChuScreen
+import com.example.qlghichu.Screen.TrashNhiemVuScreen
 
 @Composable
 fun SetupNavGraph() {
@@ -32,6 +34,14 @@ fun SetupNavGraph() {
         ) { backStackEntry ->
             val taskId = backStackEntry.arguments?.getInt("taskId") ?: 0
             ViewEditTaskScreen(navController, taskId)
+        }
+        // Thùng rác cho Ghi chú
+        composable("trash/ghi_chu") {
+            TrashGhiChuScreen(navController = navController)
+        }
+        // Thùng rác cho Nhiệm vụ
+        composable("trash/nhiem_vu") {
+            TrashNhiemVuScreen(navController = navController)
         }
     }
 }
