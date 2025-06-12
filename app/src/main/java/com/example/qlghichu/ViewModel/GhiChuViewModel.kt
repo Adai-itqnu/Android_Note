@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class GhiChuViewModel(application: Application) : AndroidViewModel(application) {
     private val repository: GhiChuRepository
@@ -27,26 +28,31 @@ class GhiChuViewModel(application: Application) : AndroidViewModel(application) 
             repository.insertGhiChu(GhiChu(tieuDe = tieuDe, noiDung = noiDung, ngay = ngay))
         }
     }
+
     fun updateGhiChu(ghiChu: GhiChu) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.updateGhiChu(ghiChu)
         }
     }
+
     fun deleteGhiChu(ghiChu: GhiChu) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteGhiChu(ghiChu)
         }
     }
+
     fun restoreGhiChu(id: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.restoreGhiChu(id)
         }
     }
+
     fun deleteGhiChuForever(id: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteGhiChuForever(id)
         }
     }
+
     suspend fun getGhiChuById(id: Int): GhiChu? = repository.getGhiChuById(id)
     fun getAllGhiChu(searchQuery: String): Flow<List<GhiChu>> = repository.getAllGhiChu(searchQuery)
     fun getDeletedGhiChu(): Flow<List<GhiChu>> = repository.getDeletedGhiChu()
@@ -70,7 +76,9 @@ class GhiChuViewModel(application: Application) : AndroidViewModel(application) 
             val newId = repository.insertNhiemVu(
                 NhiemVu(tieuDe = tieuDe, trangThai = trangThai, ngay = ngay)
             )
-            onSuccess(newId.toInt())
+            withContext(Dispatchers.Main) {
+                onSuccess(newId.toInt())
+            }
         }
     }
 
@@ -79,23 +87,29 @@ class GhiChuViewModel(application: Application) : AndroidViewModel(application) 
             repository.updateNhiemVu(nhiemVu)
         }
     }
+
     fun deleteNhiemVu(nhiemVu: NhiemVu) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteNhiemVu(nhiemVu)
         }
     }
+
     fun restoreNhiemVu(id: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.restoreNhiemVu(id)
         }
     }
+
     fun deleteNhiemVuForever(id: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteNhiemVuForever(id)
         }
     }
+
     suspend fun getNhiemVuById(id: Int): NhiemVu? = repository.getNhiemVuById(id)
-    fun getAllNhiemVu(searchQuery: String): Flow<List<NhiemVu>> = repository.getAllNhiemVu(searchQuery)
+    fun getAllNhiemVu(searchQuery: String): Flow<List<NhiemVu>> =
+        repository.getAllNhiemVu(searchQuery)
+
     fun getDeletedNhiemVu(): Flow<List<NhiemVu>> = repository.getDeletedNhiemVu()
     fun updateNhiemVuPinned(id: Int, isPinned: Boolean) {
         viewModelScope.launch(Dispatchers.IO) {
@@ -108,34 +122,47 @@ class GhiChuViewModel(application: Application) : AndroidViewModel(application) 
 
     // --- SubTask ---
     fun getSubTasksForTask(taskId: Int): Flow<List<SubTask>> = repository.getSubTasksForTask(taskId)
+
     fun addSubTask(taskId: Int, title: String) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.insertSubTask(SubTask(taskId = taskId, title = title))
             updateTaskStatusFromSubtasks(taskId)
         }
     }
+
+    fun themSubTask(subTask: SubTask) {
+        viewModelScope.launch(Dispatchers.IO) {
+            repository.insertSubTask(subTask)
+            updateTaskStatusFromSubtasks(subTask.taskId)
+        }
+    }
+
     fun updateSubTask(subTask: SubTask) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.updateSubTask(subTask)
             updateTaskStatusFromSubtasks(subTask.taskId)
         }
     }
+
     fun deleteSubTask(subTask: SubTask) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteSubTask(subTask)
             updateTaskStatusFromSubtasks(subTask.taskId)
         }
     }
+
     fun restoreSubTask(id: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.restoreSubTask(id)
         }
     }
+
     fun deleteSubTaskForever(id: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             repository.deleteSubTaskForever(id)
         }
     }
+
     private fun updateTaskStatusFromSubtasks(taskId: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             val subTasks = repository.getSubTasksForTask(taskId).first()
